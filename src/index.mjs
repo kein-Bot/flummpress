@@ -9,12 +9,14 @@ import views from "./views.mjs";
 export default class flummpress {
   constructor(opts) {
     this.opts = { ...{
-      views: path.resolve() + "/src/views",
-      routes: path.resolve() + "/src/routes"
+      views: null,
+      routes: null
     }, ...opts };
     return (async () => {
-      await router.loadRoutes(this.opts.routes);
-      await views.loadViews(this.opts.views);
+      if(this.opts.routes)
+        await router.loadRoutes(this.opts.routes);
+      if(this.opts.views)
+        await views.loadViews(this.opts.views);
       return this;
     })();
   }

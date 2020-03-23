@@ -23,7 +23,7 @@ export default new class {
   post() {
     this.route("POST", arguments);
   }
-  async static(dir = path.resolve() + "/public", route = /^\/s/) {
+  async static({ dir = path.resolve() + "/public", route = /^\/public/ }) {
     if(!this.#mimes) {
       this.#mimes = new Map();
       (await fs.readFile("/etc/mime.types", "utf-8"))
