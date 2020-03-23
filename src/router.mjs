@@ -1,6 +1,8 @@
 import { promises as fs } from "fs";
+import path from "path";
 
 export default new class {
+  #mimes;
   constructor() {
     this.routes = new Map();
   }
@@ -20,6 +22,31 @@ export default new class {
   }
   post() {
     this.route("POST", arguments);
+  }
+  async static(dir = path.resolve() + "/public", route = /^\/s/) {
+    if(!this.#mimes) {
+      this.#mimes = new Map();
+      (await fs.readFile("/etc/mime.types", "utf-8"))
+        .split("\n")
+        .filter(e => !e.startsWith("#") && e)
+        .map(e => e.split(/\s{2,}/))
+        .filter(e => e.length > 1)
+        .forEach(m => m[1].split(" ").forEach(ext => this.#mimes.set(ext, m[0])));
+    }
+
+    this.get(route, async (req, res) => {
+      try {
+        return res.reply({
+          type: this.#mimes.get(req.url.path.split(".").pop()).toLowerCase(),
+          body: await fs.readFile(path.join(dir, req.url.path.replace(route, "")), "utf-8")
+        });
+      } catch {
+        return res.reply({
+          code: 404,
+          body: "404 - file not found"
+        });
+      }
+    });
   }
 };
 

@@ -1,6 +1,6 @@
 {
-  "name": "flumm-express",
-  "version": "1.0.0",
+  "name": "flummpress",
+  "version": "1.0.1",
   "description": "Express für arme",
   "main": "src/index.mjs",
   "repository": {

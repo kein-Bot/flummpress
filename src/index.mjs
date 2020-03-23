@@ -8,8 +8,6 @@ import views from "./views.mjs";
 
 export default class flummpress {
   constructor(opts) {
-    this.Router = router;
-    this.views = views;
     this.opts = { ...{
       views: path.resolve() + "/src/views",
       routes: path.resolve() + "/src/routes"
@@ -20,8 +18,9 @@ export default class flummpress {
       return this;
     })();
   }
+
   listen(...args) {
-    return http.createServer((req, res, r) => {
+    return http.createServer(async (req, res, r) => {
       req.url = url.parse(req.url.replace(/(?!^.)(\/+)?%/, ''));
       req.url.qs = querystring.parse(req.url.query);
 
@@ -29,9 +28,15 @@ export default class flummpress {
         .on("data", d => void (data += d))
         .on("end", () => void resolve(Object.fromEntries(Object.entries(querystring.parse(data)).map(([k, v]) => [k, decodeURIComponent(v)])))));
       
-      console.log(`[${(new Date()).toLocaleTimeString()}] ${req.method} ${req.url.pathname}`);
-
-      !(r = router.routes.getRegex(req.url.pathname, req.method)) ? res.writeHead(404).end(`404 - ${req.url.pathname}`) : r(req, res);
+      res.reply = ({
+        code = 200,
+        type = "text/html",
+        body
+      }) => res.writeHead(code, { "Content-Type": `${type}; charset=utf-8` }).end(body);
+      
+      !(r = router.routes.getRegex(req.url.pathname, req.method)) ? res.writeHead(404).end(`404 - ${req.url.pathname}`) : await r(req, res);
+      console.log(`[${(new Date()).toLocaleTimeString()}] ${res.statusCode} ${req.method}\t${req.url.pathname}`);
     }).listen(...args);
   }
 };
+export { router, views };
