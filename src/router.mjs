@@ -1,7 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 
-export default new class {
+export default class Router {
   #mimes;
   constructor() {
     this.routes = new Map();
@@ -10,18 +10,21 @@ export default new class {
     await Promise.all(
       (await fs.readdir(path))
         .filter(f => f.endsWith(".mjs"))
-        .map(async route => await import(`${path}/${route}`))
+        .map(async route => (await import(`${path}/${route}`)).default(this))
     );
   }
   route(method, args) {
-    this.routes.set(args[0], { method: method, f: args[1] });
-    console.log("route set", method, args[0]);
+    //console.log("route set", method, args[0]);
+    return {
+      type: "route",
+      data: this.routes.set(args[0], { method: method, f: args[1] })
+    };
   }
   get() {
-    this.route("GET", arguments);
+    return this.route("GET", arguments);
   }
   post() {
-    this.route("POST", arguments);
+    return this.route("POST", arguments);
   }
   async static({ dir = path.resolve() + "/public", route = /^\/public/ }) {
     if(!this.#mimes) {

@@ -1,15 +1,22 @@
 import { promises as fs } from "fs";
 
-export default new class {
+export default class ViewController {
+  #views;
   constructor() {
-    this.views = new Map();
+    this.#views = new Map();
   }
-  get(view) {
-    return this.views.get(view) || false;
+  get(name) {
+    return this.#views.get(name) || false;
+  }
+  set(name, view) {
+    return {
+      type: "view",
+      data: this.#views.set(name, view)
+    };
   }
   async loadViews(path) {
-    (await fs.readdir(path))
+    return await Promise.all((await fs.readdir(path))
       .filter(view => view.endsWith(".html"))
-      .forEach(async view => this.views.set(view.slice(0, -5), await fs.readFile(`${path}/${view}`)));
+      .map(async view => this.set(view.slice(0, -5), await fs.readFile(`${path}/${view}`))));
   }
 };
