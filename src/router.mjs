@@ -1,58 +1,68 @@
-import { promises as fs } from "fs";
-import path from "path";
-
 export default class Router {
-  #mimes;
   constructor() {
     this.routes = new Map();
-  }
-  async loadRoutes(path) {
-    await Promise.all(
-      (await fs.readdir(path))
-        .filter(f => f.endsWith(".mjs"))
-        .map(async route => (await import(`${path}/${route}`)).default(this))
-    );
-  }
-  route(method, args) {
-    //console.log("route set", method, args[0]);
-    return {
-      type: "route",
-      data: this.routes.set(args[0], { method: method, f: args[1] })
+    return this;
+  };
+
+  group(path, cb) {
+    const methods = {
+      get:  this.get.bind(this),
+      post: this.post.bind(this),
     };
-  }
-  get() {
-    return this.route("GET", arguments);
-  }
-  post() {
-    return this.route("POST", arguments);
-  }
-  async static({ dir = path.resolve() + "/public", route = /^\/public/ }) {
-    if(!this.#mimes) {
-      this.#mimes = new Map();
-      (await fs.readFile("/etc/mime.types", "utf-8"))
-        .split("\n")
-        .filter(e => !e.startsWith("#") && e)
-        .map(e => e.split(/\s{2,}/))
-        .filter(e => e.length > 1)
-        .forEach(m => m[1].split(" ").forEach(ext => this.#mimes.set(ext, m[0])));
-    }
+    const target = {
+      path: new RegExp(path),
+    };
+    const handler = {
+      get: (opt, method) => (p, ...args) => methods[method](
+        new RegExp([ opt.path, new RegExp(p === "/" ? "$": p) ]
+          .map(regex => regex.source)
+          .join("")
+          .replace(/(\\\/){1,}/g, "/")),
+        ...args,
+      )
+    };
+    cb(new Proxy(target, handler));
+    return this;
+  };
 
-    this.get(route, async (req, res) => {
-      try {
-        return res.reply({
-          type: this.#mimes.get(req.url.path.split(".").pop()).toLowerCase(),
-          body: await fs.readFile(path.join(dir, req.url.path.replace(route, "")), "utf-8")
-        });
-      } catch {
-        return res.reply({
-          code: 404,
-          body: "404 - file not found"
-        });
-      }
+  get(path, ...args) {
+    if(args.length === 1)
+      this.registerRoute(path, args[0], "get");
+    else
+      this.registerRoute(path, args[1], "get", args[0]);
+    return this;
+  };
+
+  post(path, ...args) {
+    if(args.length === 1)
+      this.registerRoute(path, args[0], "post");
+    else
+      this.registerRoute(path, args[1], "post", args[0]);
+    return this;
+  };
+
+  registerRoute(path, cb, method, middleware) {
+    if(!this.routes.has(path))
+      this.routes.set(path, {});
+    this.routes.set(path, {
+      ...this.routes.get(path),
+      [method]: cb,
+      [method + "mw"]: middleware,
     });
-  }
-};
+    console.log("route set:", method.toUpperCase(), path);
+    this.sortRoutes();
+    return this;
+  };
+  
+  getRoute(path, method) {
+    method = method.toLowerCase();
+    return [...this.routes.entries()].filter(r => {
+      return (r[0] === path || r[0].exec?.(path)) && r[1].hasOwnProperty(method);
+    })[0];
+  };
 
-Map.prototype.getRegex = function(path, method) {
-  return [...this.entries()].filter(r => r[0].exec(path) && r[1].method.includes(method))[0]?.[1].f;
+  sortRoutes() {
+    this.routes = new Map([...this.routes.entries()].sort().reverse());
+    return this;
+  };
 };
